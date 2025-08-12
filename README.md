@@ -146,9 +146,6 @@ Platform ini dirancang untuk di-deploy pada infrastruktur cloud gratis:
 - **Backend**: Railway, Render, atau Google Cloud Run
 - **Database**: Supabase, Neon, atau PlanetScale
 
-## 📄 License
-
-MIT License - lihat file [LICENSE](LICENSE) untuk detail.
 
 ## 🤝 Contributing
 
