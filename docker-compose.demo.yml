@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: jelajah-postgres-demo
+    environment:
+      POSTGRES_DB: jelajah_nusantara
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_demo_data:/var/lib/postgresql/data
+      - ./backend/scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - jelajah-demo-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d jelajah_nusantara"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: jelajah-redis-demo
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_demo_data:/data
+    networks:
+      - jelajah-demo-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: jelajah-backend-demo
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/jelajah_nusantara
+      - REDIS_URL=redis://redis:6379
+      - DEBUG=true
+      - AI_PROVIDER=huggingface
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - jelajah-demo-network
+    restart: unless-stopped
+    volumes:
+      - ./backend/logs:/app/logs
+    env_file:
+      - ./backend/.env.demo
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.demo
+    container_name: jelajah-frontend-demo
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NODE_ENV=production
+      - NEXT_PUBLIC_DEMO_MODE=true
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - jelajah-demo-network
+    restart: unless-stopped
+    env_file:
+      - ./frontend/.env.demo
+
+volumes:
+  postgres_demo_data:
+    driver: local
+  redis_demo_data:
+    driver: local
+
+networks:
+  jelajah-demo-network:
+    driver: bridge
